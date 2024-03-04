@@ -1,0 +1,142 @@
+---
+title: "NYPD Shooting Incident - Victim Demographics versus Casualties"
+author: "Haley Mills"
+date: "2024-03-04"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Overview of Data
+This data is from the Data.Gov site. It contains NYPD incident information across time including victim and perpetrator demographics, location, and dates/times of the incidents.
+
+# Objective 
+My objective is to utilize this data to create an analysis of victim demographics and the statistical murder flag of these victims.
+
+# Importing Data
+
+```{r NYPD_data, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, tidy=TRUE)
+library(tidyverse)
+url_in <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+NYPD_data <- read_csv(url_in)
+NYPD_data_filtered <- NYPD_data %>%
+  filter(!is.na(STATISTICAL_MURDER_FLAG) &
+           STATISTICAL_MURDER_FLAG != "(null)" 
+         & STATISTICAL_MURDER_FLAG
+         != "UNKNOWN" & STATISTICAL_MURDER_FLAG != "U" &
+         !is.na(VIC_RACE) & VIC_RACE != "(null)" & VIC_RACE !=
+           "UNKNOWN" & VIC_RACE != "U" &
+         !is.na(VIC_AGE_GROUP) & VIC_AGE_GROUP != "(null)" &
+           VIC_AGE_GROUP != "UNKNOWN" & VIC_AGE_GROUP != "U" &
+         !is.na(VIC_SEX) & VIC_SEX != "(null)" & VIC_SEX !=
+           "UNKNOWN" & VIC_SEX != "U" & VIC_AGE_GROUP != "1020"
+         & VIC_AGE_GROUP != "1022" & VIC_AGE_GROUP != "940" &
+           VIC_AGE_GROUP != "224")
+NYPD_data_filtered <-
+  NYPD_data_filtered[NYPD_data_filtered$VIC_AGE_GROUP !=
+  "(null)" & NYPD_data_filtered$VIC_AGE_GROUP != "UNKNOWN", ]
+```
+
+
+# Visual 1: Age versus Statistical Murder Flag
+Visual 1 depicts the statistical murder flag based on age group. It shows the count of TRUE versus FALSE.
+
+```{r Age_versus_stat, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+Age_versus_stat <- NYPD_data_filtered %>%
+filter(!is.na(VIC_AGE_GROUP) & VIC_AGE_GROUP != "UNKNOWN" &
+         VIC_AGE_GROUP != "(null)" & VIC_AGE_GROUP != "1020" &
+         VIC_AGE_GROUP != "940" & VIC_AGE_GROUP != "224") %>%
+ggplot(aes(x = VIC_AGE_GROUP, fill = STATISTICAL_MURDER_FLAG)) +
+geom_bar(position = "dodge") +
+labs(title = "Statistical Murder Flag by Victim Age Group",
+x = "Victim Age Group",
+y = "Count",
+fill = "Statistical Murder Flag") +
+theme_minimal()
+Age_versus_stat
+```
+
+
+# Visual 2: Sex versus Statistical Murder Flag
+Visual 2 portrays the statistical murder flag by sex. It depicts both the TRUE and FALSE counts.
+
+```{r Sex_versus_stat, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+Sex_versus_stat <- NYPD_data_filtered %>%
+filter(!is.na(VIC_SEX) & VIC_SEX != "U" & VIC_SEX != "(null)") %>%
+ggplot(aes(x = VIC_SEX, fill = STATISTICAL_MURDER_FLAG)) +
+geom_bar(position = "dodge") +
+labs(title = "Statistical Murder Flag by Victim Sex",
+x = "Victim Sex",
+y = "Count",
+fill = "Statistical Murder Flag") +
+theme_minimal()
+Sex_versus_stat
+```
+
+# Visual 3: Race versus Statistical Murder Flag
+Visual 3 depicts the statistical murder flag by race. It, again, portrays the count of TRUE versus FALSE per race.
+
+```{r Race_versus_stat, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+Race_versus_stat <- NYPD_data_filtered %>%
+  filter(!is.na(VIC_RACE) & VIC_RACE != "U" & VIC_RACE != "(null)") %>%
+  ggplot(aes(x = VIC_RACE, fill = STATISTICAL_MURDER_FLAG)) +
+  geom_bar(position = "dodge") +
+  labs(title = "Statistical Murder Flag by Victim Race",
+       x = "Victim Race",
+       y = "Count",
+       fill = "Statistical Murder Flag") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
+Race_versus_stat
+```
+
+# Model 1: Predicted Probability of Statistical Murder Flag being TRUE based on Age Group
+This model predicts the probability of statistical murder flag being TRUE based on age group, while also showing race in different colors.
+
+```{r mod_plot, include=TRUE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+log_mod <- glm(STATISTICAL_MURDER_FLAG ~ VIC_AGE_GROUP +
+                VIC_SEX + VIC_RACE, data = NYPD_data_filtered,
+               family = "binomial")
+
+NYPD_data_filtered$pred <- predict(log_mod, type = "response")
+
+mod_plot <- ggplot(NYPD_data_filtered, aes(x = VIC_AGE_GROUP, y = pred, color = VIC_RACE)) +
+  geom_point() +
+  labs(title = "Predicted Probability of Murder Flag being TRUE",
+       x = "Victim Age Group",
+       y = "Predicted Probability",
+       color = "Victim Race")
+
+mod_plot
+```
+
+
+# My Purpose, Analysis, and Potential Bias
+
+## Purpose
+My purpose in fulfilling this analysis was to see how age, sex, and race have an impact on statistical murder flags in the NYPD data set. I wanted to see if there was a relationship between any of these variables and the event of a murder related to the shooting. Prior to reading the documentation on this data, I had thought that statistical murder flag related to whether or not the perpetrator was likely to murder, which was not the case. It is actually pertaining to whether the person who was shot died. I wanted to know how race, age, and sex impacted this value.
+
+## Analysis
+The first visual portrays the age group of the victim versus the count of true and false statistical murder flags. As there are more TRUE values, there are also more FALSE values, which could indicate that as there is a relationship between the sheer number of individuals of a certain age group being at a scene and more casualties. 
+
+The second visual portrays the sex of the victim versus the statistical murder flag true and false counts. There are many more reported men falling victim to these crimes than women, and many more men are dying from these shooting incidents. 
+
+The third visual portrays the race of the victim versus the true and false counts of the statistical murder flags. The majority of victims and casualties fall within the Black community. 
+
+The model portrays a predicted probability of a murder flag being true based on age group, while also depicting race. At first, this model was confusing to me, because I did not understand why so many people aged 45-64 were predicted to die from these incidents, considering the majority of victims involved are aged 25-44. But the ratio of victims to casualties in this higher age group is a much higher one than the age 25-44 group, which could have something to do with the resiliency of a younger body.
+
+## Potential Bias
+The primary bias I experienced in creating this analysis pertained to age. I had come in with a preconceived notion that the ratio of victims to casualties would be the highest in the age group of 25-44, because I assumed that this age group would have been involved in the most incidents. 
+
+Another bias I experienced in this project was in how I chose my data. I chose to base my data specifically off of individual demographics of the victims, instead of taking into account the locations, time of day, time of year, etc. This can potentially cause some issues in how my data is portrayed, because I could be leaving out very important factors that dictate why more casualties occur to some victims in certain areas at certain times. 
+
+Overall, my primary concern when it comes to my own biases are the assumptions I made beforehand, which could have made a large impact on how my data was portrayed. 
